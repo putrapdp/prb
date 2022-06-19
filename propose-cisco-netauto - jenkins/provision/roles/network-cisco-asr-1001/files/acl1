@@ -1,0 +1,12 @@
+route-map ini permit 124
+ match as-path 32
+
+werwre
+
+Extended IP access list 185 remark
+    10 permit ip 103.6.117.0 0.0.0.255 any
+    20 permit ip 103.50.216.0 0.0.0.255 any
+    30 permit ip 103.50.217.0 0.0.0.255 any
+    40 deny ip any any
+
+rwerwerwer

@@ -1,0 +1,80 @@
+---
+
+#gather config existing acl from running-config SOT
+    - name: Gather ACL provided configurations
+      cisco.ios.ios_acls:
+        config:
+        state: gathered
+      register: acl_gather
+
+    - set_fact:
+        nah1: "{{ acl_gather['gathered'] | to_nice_yaml }}"
+
+#convert config existing to format yaml
+    - name: Existing config
+      cisco.ios.ios_acls:
+        config:  "{{ lookup ( 'vars', 'nah1') | from_yaml }}"
+        state: rendered
+      register: acl_gather_yaml
+
+#    - debug:
+#        var: acl_gather_yaml.rendered
+
+#config yg mau diapply dirender biar rapi format nya
+    - name: Parse the provided configuration with the existing running configuration
+      cisco.ios.ios_acls:
+        running_config: "{{ lookup('file', 'acl1') }}"
+        state: parsed
+      register: cew1
+
+    - set_fact:
+        nah3: "{{ cew1['parsed'] | to_nice_yaml }}"
+
+#    - debug:
+#        var: nah3
+
+    - name: Write the ACL configuration to a file
+      copy:
+        content: "{{ nah3 }}"
+#        dest: "{{ folder_deploy }}/aclsdeploy.yaml"
+        dest: "{{ lookup('env','WORKSPACE') }}/folderdeploy/aclsdeploy.yaml"
+
+    - name: Override ACLs config with device existing ACLs config
+      cisco.ios.ios_acls:
+        config: "{{ nah3 | from_yaml }}"
+        state: rendered
+      register: coba3
+
+#    - debug:
+#        var: coba3.rendered
+
+#override
+
+    - name: Override ACLs config with device existing ACLs config
+      cisco.ios.ios_acls:
+        config: "{{ nah3 | from_yaml }}"
+        state: overridden
+      check_mode: yes
+      diff: yes
+      register: checki
+
+#    - debug:
+#        var: checki
+
+    - name: Write the ACL configuration to a file INIIIIIIIII
+      copy:
+        content: "{{ checki.commands }}"
+        dest: "{{ folder_command }}/aclscommand.yaml"
+
+#coba diffx
+    - name: Show the difference in path format
+      ansible.utils.fact_diff:
+        before: "{{ acl_gather_yaml.rendered|ansible.utils.to_paths }}"
+        after: "{{ coba3.rendered|ansible.utils.to_paths }}"
+      register: acldiff
+
+    - name: Write the ACL configuration to a file INIIIIIIIII
+      copy:
+        content: "{{ acldiff.diff_text }}"
+        dest: "{{ folder_diff }}/aclsdiff.yaml"
+

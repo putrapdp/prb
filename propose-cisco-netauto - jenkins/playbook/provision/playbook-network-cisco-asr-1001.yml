@@ -1,0 +1,69 @@
+---
+- name: pb
+  hosts: sw
+  connection: network_cli
+  gather_facts: false
+  vars:
+    - ansible_python_interpreter: /usr/bin/python3.8
+    - folder_backup: "/home/kaskus/network/cisco-asr-1001/backup"
+    - folder_command: "/home/kaskus/network/cisco-asr-1001/command"
+    - folder_diff: "/home/kaskus/network/cisco-asr-1001/diff"
+#    - folder_deploy: "/home/kaskus/network/cisco-asr-1001/deploy"
+
+  vars_files: 
+    - ../../group_vars/network/cisco-asr-1001.yml
+
+  pre_tasks:
+    - name: re-create directory
+      file:
+        path: "{{ item.path }}"
+        state: "{{ item.state }}"
+        owner: root
+        group: root
+        mode: 0775
+      with_items:
+        - { path: '{{ folder_backup }}', state: 'absent'}
+        - { path: '{{ folder_backup }}', state: 'directory'}
+        - { path: '{{ folder_command }}', state: 'absent'}
+        - { path: '{{ folder_command }}', state: 'directory'}
+        - { path: '{{ folder_diff }}', state: 'absent'}
+        - { path: '{{ folder_diff }}', state: 'directory'}  
+        - { path: '{{ lookup('env','WORKSPACE') }}/folderdeploy/', state: 'absent'}
+        - { path: '{{ lookup('env','WORKSPACE') }}/folderdeploy/', state: 'directory'}
+#        - { path: '{{ folder_deploy}}', state: 'absent'}
+#        - { path: '{{ folder_deploy}}', state: 'directory'}              
+      tags:
+        - always  
+
+  roles:
+    - role: network-cisco-asr-1001
+
+  post_tasks:
+    - name: Assembling diff
+      assemble:
+       src: "{{ folder_diff }}"
+       dest: "{{ lookup('env', 'WORKSPACE') }}/diff_assemble"
+#       dest: "diff_assemble"
+
+    - name: Assembling commands 
+      assemble:
+        src: "{{ folder_command }}"
+        dest: "{{ lookup('env', 'WORKSPACE') }}/command_assemble"
+#        dest: "{{ folder_command }}/command_assemble"
+#        dest: "command_assemble"
+
+    - name: Replace multiple lines and entries
+      replace:
+        path: "{{ lookup('env', 'WORKSPACE') }}/command_assemble"
+#        path: "command_assemble"
+
+        # Line to Search/Match against
+        regexp: '{{item.From}}'
+        # Line to Replace with
+        replace: '{{item.To}}'
+      with_items:
+        - { From: '\", \"', To: '\n'}
+        - { From: '\["', To: '\n'}
+        - { From: '\"]', To: '\n'}
+      tags:
+        - always  
